@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import java.nio.charset.StandardCharsets;
 
 public class DirectoryContents {
     private List<FileObserver> observers = new ArrayList<>();
@@ -19,7 +20,7 @@ public class DirectoryContents {
      */
     public void attach(FileObserver observer) {
         observers.add(observer);
-        observer.update(fileCounts);
+        observer.update(fileCounts, countLines());
     }
 
     /**
@@ -35,7 +36,7 @@ public class DirectoryContents {
      */
     private void notifyChanges() {
         for (FileObserver observer : observers) {
-            observer.update(fileCounts);
+            observer.update(fileCounts, countLines());
         }
     }
 
@@ -94,4 +95,55 @@ public class DirectoryContents {
             }
         }
     }
+
+    /**
+     * Zählt die Zeilen, Codezeilen und Leerzeilen jeder Datei im Verzeichnis
+     * @return Eine Map, die den Dateityp mit einem Array verknüpft: [Gesamtzeilen, Codezeilen, Leerzeilen]
+     */
+    public Map<String, int[]> countLines() {
+        Map<String, int[]> lineCounts = new HashMap<>();
+
+        try {
+            Files.list(dir).forEach(file -> {
+                String fileName = file.getFileName().toString();
+                String fileExtension = getFileExtension(fileName);
+
+                int totalLines = 0;
+                int codeLines = 0;
+                int emptyLines = 0;
+
+                try {
+                    List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+                    totalLines = lines.size();
+
+                    for (String line : lines) {
+                        line = line.trim();
+
+                        if (line.isEmpty()) {
+                            emptyLines++;
+                        } else {
+                            codeLines++;
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                if (!lineCounts.containsKey(fileExtension)) {
+                    lineCounts.put(fileExtension, new int[]{totalLines, codeLines, emptyLines});
+                } else {
+                    int[] currentCounts = lineCounts.get(fileExtension);
+                    currentCounts[0] += totalLines;
+                    currentCounts[1] += codeLines;
+                    currentCounts[2] += emptyLines;
+                    lineCounts.put(fileExtension, currentCounts);
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return lineCounts;
+    }
+
 }
