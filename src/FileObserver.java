@@ -1,3 +1,5 @@
+import java.util.Map;
+
 public interface FileObserver {
-    void update(String fileType, boolean exists);
+    void update(Map<String, Integer> fileCounts);
 }
